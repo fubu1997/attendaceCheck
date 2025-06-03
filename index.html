@@ -5,7 +5,7 @@
   <title>출석 체크 시스템</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- 연결된 CSS 파일 -->
+  <!-- CSS 파일 로드 -->
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -13,11 +13,14 @@
     <div class="card">
       <h1 class="title">군산해경 출석체크 시스템</h1>
       <p class="subtitle">아래 버튼을 눌러 해당 기능으로 이동하세요.</p>
-      <div class="button-group">
-        <a href="generate.html" class="btn">QR 코드 생성</a>
-        <a href="scan.html" class="btn">QR 코드 스캔</a>
-        <a href="status.html" class="btn">출석 현황 보기</a>
+
+      <!-- 버튼을 세로로 쌓기 위해 vertical-button-group 사용 -->
+      <div class="vertical-button-group">
+        <a href="generate.html" class="action-btn">QR 코드 생성</a>
+        <a href="scan.html"    class="action-btn">QR 코드 스캔</a>
+        <a href="status.html"  class="action-btn">오늘 출석 현황</a>
       </div>
+
       <p class="footer-note">© 2025 군산해양경찰서. All rights reserved.</p>
     </div>
   </div>
