@@ -48,8 +48,33 @@ body {
 /* 버튼 그룹 간격 */
 .button-group {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 10px 0;
+  font-size: 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #fff;
+  background-color: #4a90e2; /* 기존 다운로드 버튼 색상 */
+  transition: background-color 0.2s ease;
+}
+
+.action-btn:hover {
+  background-color: #4178c0;
+}
+
+.reset-btn {
+  background-color: #e24a4a; /* 빨간색 계열로 구분 */
+}
+
+.reset-btn:hover {
+  background-color: #c03f3f;
 }
 
 /* 버튼 기본 스타일 */
