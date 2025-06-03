@@ -1,20 +1,23 @@
-<!-- ATTENDANCECHECK/scan.html (음성 안내 추가 버전) -->
+<!-- ATTENDANCECHECK/scan.html (수정본) -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <title>QR 스캔 &amp; 출석 체크</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- 공통 CSS 불러오기 -->
   <link rel="stylesheet" href="css/style.css" />
+  <!-- jsQR 라이브러리 -->
   <script src="js/jsQR.js"></script>
+  <!-- 직원 목록 -->
   <script src="employees.js"></script>
 </head>
 <body>
   <div class="container">
     <h1>QR 스캔으로 출석 체크</h1>
-    <p>전면 카메라를 통해 화면을 보면서 QR을 인식하세요.</p>
+    <p>전면 카메라를 보면서 QR 코드를 인식하세요.</p>
 
-    <!-- 전면 카메라 영상 -->
+    <!-- 전면 카메라 영상 (거울 느낌) -->
     <video id="video" autoplay playsinline style="transform: scaleX(-1);"></video>
     <canvas id="canvas" hidden></canvas>
 
@@ -28,11 +31,35 @@
     </div>
   </div>
 
-  <!-- 출석 완료 팝업 -->
+  <!-- 출석 완료 토스트 팝업 -->
   <div id="toast-popup">출석이 완료되었습니다</div>
 
   <script>
-    // 오늘 날짜를 YYYY-MM-DD 형태로 반환
+    //─ 1) 음성 안내를 위한 코덱 준비 ──────────────────────────────────────────
+    let availableVoices = [];
+    window.speechSynthesis.onvoiceschanged = () => {
+      // 브라우저가 음성 목록을 로드한 뒤 호출됨
+      availableVoices = window.speechSynthesis.getVoices();
+    };
+
+    function speak(text) {
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'ko-KR';
+
+      // 한국어 여성 음성을 우선 찾아본다
+      const femaleKorean = availableVoices.find(v =>
+        v.lang.startsWith('ko') && v.name.toLowerCase().includes('female')
+      ) || availableVoices.find(v =>
+        v.lang.startsWith('ko')
+      );
+
+      if (femaleKorean) {
+        utter.voice = femaleKorean;
+      }
+      window.speechSynthesis.speak(utter);
+    }
+
+    //─ 2) 오늘 날짜 문자열 반환 ───────────────────────────────────────────
     function getTodayStr() {
       const now = new Date();
       const yyyy = now.getFullYear();
@@ -41,130 +68,130 @@
       return `${yyyy}-${mm}-${dd}`;
     }
 
-    // DOM 로드 시 출석 데이터 초기화, 스캐너 실행
-    document.addEventListener("DOMContentLoaded", () => {
+    document.addEventListener('DOMContentLoaded', () => {
       const todayStr = getTodayStr();
-      const savedDate = localStorage.getItem("attendance_date");
+      const savedDate = localStorage.getItem('attendance_date');
+
       if (savedDate !== todayStr) {
-        localStorage.setItem("attendance", JSON.stringify([]));
-        localStorage.setItem("attendance_date", todayStr);
+        // 날짜가 바뀌었으면 이전 기록 지움
+        localStorage.setItem('attendance', JSON.stringify([]));
+        localStorage.setItem('attendance_date', todayStr);
       }
       refreshAttendanceList();
       startScanner().catch(err => {
         console.error(err);
-        document.getElementById("status").textContent = "카메라 접근 오류.";
+        document.getElementById('status').textContent = '카메라 접근 오류';
       });
     });
 
-    // 출석 리스트 렌더링
+    //─ 3) 오늘 출석자 목록 화면에 렌더링 ───────────────────────────────────
     function refreshAttendanceList() {
-      const listElem = document.getElementById("list");
-      listElem.innerHTML = "";
-      const records = JSON.parse(localStorage.getItem("attendance")) || [];
+      const listElem = document.getElementById('list');
+      listElem.innerHTML = '';
+      const records = JSON.parse(localStorage.getItem('attendance')) || [];
       records.forEach(rec => {
-        const li = document.createElement("li");
+        const li = document.createElement('li');
         li.textContent = `${rec.name} (${rec.id}) - ${rec.time}`;
         listElem.appendChild(li);
       });
     }
 
-    // 토스트 팝업 표시 (3초간)
+    //─ 4) 토스트 팝업 띄우기(3초 후 자동 사라짐) ─────────────────────────────
     function showToast(message) {
-      const toast = document.getElementById("toast-popup");
+      const toast = document.getElementById('toast-popup');
       toast.textContent = message;
-      toast.style.display = "block";
+      toast.style.display = 'block';
       setTimeout(() => {
-        toast.style.display = "none";
+        toast.style.display = 'none';
       }, 3000);
     }
 
-    // 음성으로 안내하기 (여성 한국어 목소리 시도)
-    function speak(text) {
-      // 1) Utterance 객체 생성
-      const msg = new SpeechSynthesisUtterance(text);
-      msg.lang = 'ko-KR'; // 한국어
-      // 2) available voices 중 한국어 여성 목소리 찾기
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        // 예시로 'Google 한국의 여성 목소리' 같은 이름을 가진 것을 우선 선택
-        const femaleKorean = voices.find(v => 
-          v.lang.startsWith('ko') && v.name.toLowerCase().includes('female')
-        ) || voices.find(v =>
-          v.lang.startsWith('ko') && v.name.toLowerCase().includes('korean')
-        );
-        if (femaleKorean) {
-          msg.voice = femaleKorean;
-        }
-      }
-      // 3) 출력
-      window.speechSynthesis.speak(msg);
-    }
-
-    // QR 스캔 & 출석 체크 로직 (전면 카메라)
+    //─ 5) QR 스캔 & 출석 처리 로직 (전면 카메라, 연속 스캔, 음성 안내 포함) ─────
     async function startScanner() {
-      const video = document.getElementById("video");
-      const canvas = document.getElementById("canvas");
-      const ctx = canvas.getContext("2d");
-      const statusElem = document.getElementById("status");
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      const statusElem = document.getElementById('status');
 
       // 전면 카메라 요청
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" }
+        video: { facingMode: 'user' }
       });
       video.srcObject = stream;
-      video.style.transform = "scaleX(-1)"; // 거울 효과
+      video.style.transform = 'scaleX(-1)'; // 거울처럼 뒤집어서 보여주기
 
-      video.addEventListener("loadedmetadata", () => {
+      video.addEventListener('loadedmetadata', () => {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
       });
+
+      // 한 번 성공적으로 스캔했을 때, 같은 QR을 잠시 다시 스캔하지 않도록 하는 플래그
+      let lastScanned = null;
+      let coolDown = false;
 
       function tick() {
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: "dontInvert"
+            inversionAttempts: 'dontInvert'
           });
 
-          if (code) {
-            const raw = code.data.trim(); // 예: "HC001|2025-06-10"
-            console.log("스캔된 QR 데이터:", raw);
-
-            const parts = raw.split("|");
+          if (code && !coolDown) {
+            const raw = code.data.trim();      // ex: "HC001|2025-06-10"
+            const parts = raw.split('|');
             if (parts.length !== 2) {
-              statusElem.textContent = "유효하지 않은 QR 코드입니다.";
+              statusElem.textContent = '유효하지 않은 QR 코드입니다.';
             } else {
               const [scannedId, scannedDate] = parts;
               const today = getTodayStr();
 
               if (scannedDate !== today) {
-                statusElem.textContent = "오늘자 QR이 아닙니다.";
+                statusElem.textContent = '오늘자 QR이 아닙니다.';
               } else {
                 const emp = employees.find(e => e.id === scannedId);
                 if (!emp) {
-                  statusElem.textContent = "등록되지 않은 직원입니다.";
+                  statusElem.textContent = '등록되지 않은 직원입니다.';
                 } else {
-                  let records = JSON.parse(localStorage.getItem("attendance")) || [];
-                  const already = records.some(r => r.id === scannedId);
-                  if (already) {
-                    statusElem.textContent = "이미 출석 처리되었습니다.";
+                  // 이미 같은 QR을 연속으로 읽지 않도록
+                  if (scannedId === lastScanned) {
+                    statusElem.textContent = '이미 인식된 QR입니다. 잠시 후 다시 시도하세요.';
                   } else {
-                    const nowTime = new Date().toLocaleTimeString();
-                    records.push({ id: emp.id, name: emp.name, time: nowTime });
-                    localStorage.setItem("attendance", JSON.stringify(records));
-                    statusElem.textContent = `${emp.name}님 출석 완료 (${nowTime})`;
-                    refreshAttendanceList();
+                    // 오늘 이미 출석했는지 확인
+                    let records = JSON.parse(localStorage.getItem('attendance')) || [];
+                    const already = records.some(r => r.id === scannedId);
 
-                    // **음성 안내** + **팝업**
-                    speak("출석이 완료되었습니다");
-                    showToast("출석이 완료되었습니다");
+                    if (already) {
+                      statusElem.textContent = '이미 출석 처리되었습니다.';
+                    } else {
+                      // 정상 출석 처리
+                      const nowTime = new Date().toLocaleTimeString();
+                      records.push({ id: emp.id, name: emp.name, time: nowTime });
+                      localStorage.setItem('attendance', JSON.stringify(records));
+                      statusElem.textContent = `${emp.name}님 출석 완료 (${nowTime})`;
+                      refreshAttendanceList();
+
+                      // 음성 안내 및 토스트 팝업
+                      speak('출석이 완료되었습니다');
+                      showToast('출석이 완료되었습니다');
+
+                      // 잠깐(1.5초) 재스캔을 막는다
+                      coolDown = true;
+                      lastScanned = scannedId;
+                      setTimeout(() => {
+                        coolDown = false;
+                        lastScanned = null;
+                        statusElem.textContent = '다음 출석을 기다리는 중...';
+                      }, 1500);
+                    }
                   }
                 }
               }
             }
           } else {
-            statusElem.textContent = "스캔 대기 중...";
+            if (!coolDown) {
+              statusElem.textContent = '스캔 대기 중...';
+            }
           }
         }
         requestAnimationFrame(tick);
