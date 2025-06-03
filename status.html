@@ -1,30 +1,33 @@
-<!-- ATTENDANCECHECK/status.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>오늘 출석 현황 (Excel 다운로드)</title>
+  <title>오늘 출석 현황</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- 공통 스타일, employees.js, SheetJS 로드 -->
   <link rel="stylesheet" href="css/style.css" />
   <script src="employees.js"></script>
-  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <div id="status-container">
     <h1>오늘 출석 현황</h1>
 
-    <!-- Excel 다운로드 버튼 -->
-    <button id="download-xlsx-btn"
-            style="display: block; margin: 0 auto 16px; padding: 8px 16px;">
-      출석현황 Excel 다운로드
-    </button>
+    <!-- Excel 다운로드 / 데이터 리셋 버튼 -->
+    <div class="button-group">
+      <button id="download-xlsx-btn" class="action-btn">
+        출석현황 Excel 다운로드
+      </button>
+      <button id="reset-data-btn" class="action-btn reset-btn">
+        출석 데이터 리셋
+      </button>
+    </div>
 
-    <!-- 출석 리스트 -->
-    <ul id="attendance-list"></ul>
+    <ul id="attendance-list">
+      <!-- 자바스크립트가 여기 <li> 요소를 추가합니다 -->
+    </ul>
   </div>
 
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
   <script>
     // 오늘 날짜를 "YYYY-MM-DD" 형태로 반환
     function getTodayStr() {
@@ -38,13 +41,18 @@
     document.addEventListener('DOMContentLoaded', () => {
       renderStatusList();
 
-      // Excel 다운로드 버튼에 이벤트 연결
+      // Excel 다운로드 버튼 이벤트
       document
         .getElementById('download-xlsx-btn')
         .addEventListener('click', downloadXlsx);
+
+      // 데이터 리셋 버튼 이벤트
+      document
+        .getElementById('reset-data-btn')
+        .addEventListener('click', resetAttendanceData);
     });
 
-    // 출석 리스트를 화면에 렌더링하는 함수 (기존 로직 그대로)
+    // 출석 리스트 화면에 그리는 함수
     function renderStatusList() {
       const listElem = document.getElementById('attendance-list');
       listElem.innerHTML = '';
@@ -52,7 +60,7 @@
       const todayStr = getTodayStr();
       const savedDate = localStorage.getItem('attendance_date');
       if (savedDate !== todayStr) {
-        // 날짜가 다르면 초기화
+        // 날짜가 바뀌면 오늘로 초기화
         localStorage.setItem('attendance', JSON.stringify([]));
         localStorage.setItem('attendance_date', todayStr);
       }
@@ -76,63 +84,67 @@
           absentSpan.textContent = '미출석';
           li.appendChild(absentSpan);
         }
+
         listElem.appendChild(li);
       });
     }
 
-    // Excel(.xlsx) 파일로 출석 현황을 다운로드하는 함수 (소속 컬럼 추가)
+    // Excel(.xlsx) 파일로 출석 현황을 다운로드하는 함수
     function downloadXlsx() {
-      // 1) 로컬스토리지에서 오늘 출석 기록 가져오기
       const records = JSON.parse(localStorage.getItem('attendance')) || [];
-      // id → { name, time } 맵 생성
       const recordMap = {};
       records.forEach(r => {
         recordMap[r.id] = { name: r.name, time: r.time };
       });
 
-      // 2) 워크북 생성
       const wb = XLSX.utils.book_new();
-
-      // 3) 워크시트에 들어갈 데이터 배열 생성
-      // 헤더에 "소속" 컬럼을 추가
       const wsData = [
         ["ID", "이름", "소속", "출석여부", "출석시간"]
       ];
 
-      // 직원 하나씩 순회하며 데이터 행 추가
       employees.forEach(emp => {
         if (recordMap[emp.id]) {
-          // 출석한 경우
           wsData.push([
             emp.id,
             emp.name,
-            emp.group,              // **소속**
+            emp.group,
             "출석",
             recordMap[emp.id].time
           ]);
         } else {
-          // 미출석인 경우
           wsData.push([
             emp.id,
             emp.name,
-            emp.group,              // **소속**
+            emp.group,
             "미출석",
             ""
           ]);
         }
       });
 
-      // 4) 배열 → 워크시트 객체 변환
       const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-      // 5) 워크북에 워크시트 추가 (시트명: "출석현황")
       XLSX.utils.book_append_sheet(wb, ws, "출석현황");
 
-      // 6) 파일명 생성 (예: 2025-06-04-attendance.xlsx)
       const filename = `${getTodayStr()}-attendance.xlsx`;
-
-      // 7) 워크북을 파일로 생성하여 다운로드
       XLSX.writeFile(wb, filename);
+    }
+
+    // 출석 데이터 리셋 함수 (로컬스토리지에서 attendance만 초기화)
+    function resetAttendanceData() {
+      // 확인(옵션): 정말 초기화할지 묻는 confirm 팝업
+      if (!confirm("정말 오늘자 출석 기록을 모두 초기화하시겠습니까?")) {
+        return;
+      }
+      // attendance 배열 초기화 (빈 배열로 변경)
+      localStorage.setItem('attendance', JSON.stringify([]));
+      // attendance_date는 오늘로 그대로 유지하여, 같은 날짜 내에서만 사용
+      // localStorage.setItem('attendance_date', getTodayStr());
+
+      // 화면 목록 다시 렌더링
+      renderStatusList();
+
+      //(선택) 성공 안내 토스트
+      alert("오늘자 출석 기록이 초기화되었습니다.");
     }
   </script>
 </body>
