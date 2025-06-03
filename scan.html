@@ -1,12 +1,11 @@
-<!-- ATTENDANCECHECK/scan.html (전면 카메라용) -->
+<!-- ATTENDANCECHECK/scan.html (음성 안내 추가 버전) -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>QR 스캔 &amp; 출석 체크 (전면 카메라)</title>
+  <title>QR 스캔 &amp; 출석 체크</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="css/style.css" />
-  <!-- jsQR 라이브러리 로드 -->
   <script src="js/jsQR.js"></script>
   <script src="employees.js"></script>
 </head>
@@ -15,9 +14,8 @@
     <h1>QR 스캔으로 출석 체크</h1>
     <p>전면 카메라를 통해 화면을 보면서 QR을 인식하세요.</p>
 
-    <!-- 전면 카메라 영상 출력용 비디오 태그 -->
+    <!-- 전면 카메라 영상 -->
     <video id="video" autoplay playsinline style="transform: scaleX(-1);"></video>
-    <!-- 캔버스는 내부적으로만 사용하므로 화면에 숨김 -->
     <canvas id="canvas" hidden></canvas>
 
     <!-- 상태 메시지 -->
@@ -34,7 +32,7 @@
   <div id="toast-popup">출석이 완료되었습니다</div>
 
   <script>
-    // 오늘 날짜를 YYYY-MM-DD 문자열로 반환
+    // 오늘 날짜를 YYYY-MM-DD 형태로 반환
     function getTodayStr() {
       const now = new Date();
       const yyyy = now.getFullYear();
@@ -43,16 +41,14 @@
       return `${yyyy}-${mm}-${dd}`;
     }
 
+    // DOM 로드 시 출석 데이터 초기화, 스캐너 실행
     document.addEventListener("DOMContentLoaded", () => {
       const todayStr = getTodayStr();
       const savedDate = localStorage.getItem("attendance_date");
-
       if (savedDate !== todayStr) {
-        // 날짜가 다르면 (어제 또는 이전 데이터)
         localStorage.setItem("attendance", JSON.stringify([]));
         localStorage.setItem("attendance_date", todayStr);
       }
-
       refreshAttendanceList();
       startScanner().catch(err => {
         console.error(err);
@@ -82,20 +78,41 @@
       }, 3000);
     }
 
-    // QR 스캔 및 출석 체크 로직
+    // 음성으로 안내하기 (여성 한국어 목소리 시도)
+    function speak(text) {
+      // 1) Utterance 객체 생성
+      const msg = new SpeechSynthesisUtterance(text);
+      msg.lang = 'ko-KR'; // 한국어
+      // 2) available voices 중 한국어 여성 목소리 찾기
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        // 예시로 'Google 한국의 여성 목소리' 같은 이름을 가진 것을 우선 선택
+        const femaleKorean = voices.find(v => 
+          v.lang.startsWith('ko') && v.name.toLowerCase().includes('female')
+        ) || voices.find(v =>
+          v.lang.startsWith('ko') && v.name.toLowerCase().includes('korean')
+        );
+        if (femaleKorean) {
+          msg.voice = femaleKorean;
+        }
+      }
+      // 3) 출력
+      window.speechSynthesis.speak(msg);
+    }
+
+    // QR 스캔 & 출석 체크 로직 (전면 카메라)
     async function startScanner() {
       const video = document.getElementById("video");
       const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d");
       const statusElem = document.getElementById("status");
 
-      // 전면 카메라 요청 → video 화면에 배치
+      // 전면 카메라 요청
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user" }
       });
       video.srcObject = stream;
-      // 전면 카메라일 때 좌우 뒤집기 (거울 효과)
-      video.style.transform = "scaleX(-1)";
+      video.style.transform = "scaleX(-1)"; // 거울 효과
 
       video.addEventListener("loadedmetadata", () => {
         canvas.width = video.videoWidth;
@@ -111,11 +128,9 @@
           });
 
           if (code) {
-            // QR에서 읽힌 전체 문자열 (예: "HC001|2025-06-10")
-            const raw = code.data.trim();
+            const raw = code.data.trim(); // 예: "HC001|2025-06-10"
             console.log("스캔된 QR 데이터:", raw);
 
-            // "|"로 분리해서 ID와 날짜 부분 얻기
             const parts = raw.split("|");
             if (parts.length !== 2) {
               statusElem.textContent = "유효하지 않은 QR 코드입니다.";
@@ -123,27 +138,26 @@
               const [scannedId, scannedDate] = parts;
               const today = getTodayStr();
 
-              // 1) QR에 담긴 날짜가 오늘인지 확인
               if (scannedDate !== today) {
                 statusElem.textContent = "오늘자 QR이 아닙니다.";
               } else {
-                // 2) employees 목록에서 사번 확인
                 const emp = employees.find(e => e.id === scannedId);
                 if (!emp) {
                   statusElem.textContent = "등록되지 않은 직원입니다.";
                 } else {
-                  // 3) 중복 출석 검사
                   let records = JSON.parse(localStorage.getItem("attendance")) || [];
                   const already = records.some(r => r.id === scannedId);
                   if (already) {
                     statusElem.textContent = "이미 출석 처리되었습니다.";
                   } else {
-                    // 4) 정상 출석 처리 → localStorage에 저장
                     const nowTime = new Date().toLocaleTimeString();
                     records.push({ id: emp.id, name: emp.name, time: nowTime });
                     localStorage.setItem("attendance", JSON.stringify(records));
                     statusElem.textContent = `${emp.name}님 출석 완료 (${nowTime})`;
                     refreshAttendanceList();
+
+                    // **음성 안내** + **팝업**
+                    speak("출석이 완료되었습니다");
                     showToast("출석이 완료되었습니다");
                   }
                 }
