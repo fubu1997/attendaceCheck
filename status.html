@@ -3,21 +3,30 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>오늘 출석 현황</title>
+  <title>오늘 출석 현황 (Excel 다운로드)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- 공통 스타일, employees.js, SheetJS 로드 -->
   <link rel="stylesheet" href="css/style.css" />
   <script src="employees.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <div id="status-container">
     <h1>오늘 출석 현황</h1>
-    <ul id="attendance-list">
-      <!-- 자바스크립트가 여기에 <li>를 추가합니다 -->
-    </ul>
+
+    <!-- Excel 다운로드 버튼 -->
+    <button id="download-xlsx-btn"
+            style="display: block; margin: 0 auto 16px; padding: 8px 16px;">
+      출석현황 Excel 다운로드
+    </button>
+
+    <!-- 출석 리스트 -->
+    <ul id="attendance-list"></ul>
   </div>
 
   <script>
-    // 오늘 날짜 YYYY-MM-DD 구하는 함수
+    // 오늘 날짜를 "YYYY-MM-DD" 형태로 반환
     function getTodayStr() {
       const now = new Date();
       const yyyy = now.getFullYear();
@@ -27,12 +36,23 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      renderStatusList();
+
+      // Excel 다운로드 버튼에 이벤트 연결
+      document
+        .getElementById('download-xlsx-btn')
+        .addEventListener('click', downloadXlsx);
+    });
+
+    // 출석 리스트를 화면에 렌더링하는 함수 (기존 로직 그대로)
+    function renderStatusList() {
       const listElem = document.getElementById('attendance-list');
+      listElem.innerHTML = '';
+
       const todayStr = getTodayStr();
       const savedDate = localStorage.getItem('attendance_date');
-
-      // 날짜가 다르면 출석 초기화
       if (savedDate !== todayStr) {
+        // 날짜가 다르면 초기화
         localStorage.setItem('attendance', JSON.stringify([]));
         localStorage.setItem('attendance_date', todayStr);
       }
@@ -42,7 +62,7 @@
 
       employees.forEach(emp => {
         const li = document.createElement('li');
-        li.textContent = emp.name + ' (' + emp.id + ')';
+        li.textContent = `${emp.name} (${emp.id}) [${emp.group}]`;
 
         if (attendedSet.has(emp.id)) {
           li.classList.add('present');
@@ -56,10 +76,64 @@
           absentSpan.textContent = '미출석';
           li.appendChild(absentSpan);
         }
-
         listElem.appendChild(li);
       });
-    });
+    }
+
+    // Excel(.xlsx) 파일로 출석 현황을 다운로드하는 함수 (소속 컬럼 추가)
+    function downloadXlsx() {
+      // 1) 로컬스토리지에서 오늘 출석 기록 가져오기
+      const records = JSON.parse(localStorage.getItem('attendance')) || [];
+      // id → { name, time } 맵 생성
+      const recordMap = {};
+      records.forEach(r => {
+        recordMap[r.id] = { name: r.name, time: r.time };
+      });
+
+      // 2) 워크북 생성
+      const wb = XLSX.utils.book_new();
+
+      // 3) 워크시트에 들어갈 데이터 배열 생성
+      // 헤더에 "소속" 컬럼을 추가
+      const wsData = [
+        ["ID", "이름", "소속", "출석여부", "출석시간"]
+      ];
+
+      // 직원 하나씩 순회하며 데이터 행 추가
+      employees.forEach(emp => {
+        if (recordMap[emp.id]) {
+          // 출석한 경우
+          wsData.push([
+            emp.id,
+            emp.name,
+            emp.group,              // **소속**
+            "출석",
+            recordMap[emp.id].time
+          ]);
+        } else {
+          // 미출석인 경우
+          wsData.push([
+            emp.id,
+            emp.name,
+            emp.group,              // **소속**
+            "미출석",
+            ""
+          ]);
+        }
+      });
+
+      // 4) 배열 → 워크시트 객체 변환
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+      // 5) 워크북에 워크시트 추가 (시트명: "출석현황")
+      XLSX.utils.book_append_sheet(wb, ws, "출석현황");
+
+      // 6) 파일명 생성 (예: 2025-06-04-attendance.xlsx)
+      const filename = `${getTodayStr()}-attendance.xlsx`;
+
+      // 7) 워크북을 파일로 생성하여 다운로드
+      XLSX.writeFile(wb, filename);
+    }
   </script>
 </body>
 </html>
