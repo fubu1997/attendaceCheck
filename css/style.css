@@ -1,12 +1,90 @@
 /* ATTENDANCECHECK/css/style.css */
 
-/* --- 공통 기본 설정 --- */
+/* css/style.css */
+
+/* 전체 화면 배경 그라데이션 */
 body {
-  font-family: 'Noto Sans KR', sans-serif;
-  background-color: #f0f0f0;
   margin: 0;
-  padding: 20px;
+  padding: 0;
+  font-family: 'Noto Sans KR', sans-serif;
+  background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
+/* 중앙 정렬 래퍼 */
+.wrapper {
+  width: 100%;
+  max-width: 420px;
+  margin: 20px;
+}
+
+/* 카드 컨테이너 */
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  padding: 32px 24px;
+  text-align: center;
+}
+
+/* 타이틀 스타일 */
+.title {
+  margin: 0;
+  font-size: 1.8rem;
+  color: #333333;
+}
+
+/* 서브타이틀(설명) */
+.subtitle {
+  margin-top: 8px;
+  margin-bottom: 24px;
+  font-size: 1rem;
+  color: #666666;
+}
+
+/* 버튼 그룹 간격 */
+.button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 버튼 기본 스타일 */
+.btn {
+  display: block;
+  text-decoration: none;
+  background-color: #4a90e2;
+  color: #ffffff;
+  padding: 12px 0;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* 버튼 호버 효과 */
+.btn:hover {
+  background-color: #4178c0;
+  transform: translateY(-2px);
+}
+
+/* 버튼 클릭(활성화) 효과 */
+.btn:active {
+  background-color: #35659f;
+  transform: translateY(0);
+}
+
+/* 카드 하단 푸터 노트 */
+.footer-note {
+  margin-top: 32px;
+  font-size: 0.85rem;
+  color: #999999;
+}
+
+
+
 
 /* 공통 컨테이너 박스 */
 .container {

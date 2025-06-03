@@ -3,47 +3,195 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>QR 코드 생성 (출석용)</title>
+  <title>소속별 QR 코드 생성</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="css/style.css" />
-  <!-- QRCode.js 라이브러리 -->
-  <script src="js/qrcode.min.js"></script>
+
+  <!-- 공통 스타일 (선택) -->
+  <style>
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 400px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 6px;
+      padding: 20px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin: 12px 0 4px;
+      font-weight: bold;
+    }
+    select, button {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 16px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #aaa;
+      cursor: not-allowed;
+    }
+    #qr-output {
+      text-align: center;
+      margin-top: 20px;
+    }
+    #qr-output canvas {
+      border: 1px solid #333;
+      margin-bottom: 8px;
+    }
+    #qr-label {
+      font-size: 16px;
+      font-weight: bold;
+    }
+  </style>
+
+  <!-- employees 목록 로드 -->
   <script src="employees.js"></script>
+  <!-- QRCode 생성 라이브러리 -->
+  <script src="js/qrcode.min.js"></script>
 </head>
 <body>
   <div class="container">
-    <h1>해경 직원 QR 코드 생성</h1>
-    <p>아래에 해경 전체 인원의 QR 코드가 표시됩니다. 인쇄하거나, 화면에 띄워서 사용하세요.</p>
-    <div id="qr-container"></div>
+    <h1>소속별 QR 코드 생성</h1>
+
+    <!-- 1) 소속 선택 드롭다운 -->
+    <label for="groupSelect">소속 선택</label>
+    <select id="groupSelect">
+      <option value="">-- 소속을 선택하세요 --</option>
+      <!-- 스크립트에서 동적으로 옵션을 채웁니다 -->
+    </select>
+
+    <!-- 2) 직원 선택 드롭다운 -->
+    <label for="employeeSelect">직원 선택</label>
+    <select id="employeeSelect" disabled>
+      <option value="">-- 먼저 소속을 선택하세요 --</option>
+    </select>
+
+    <!-- 3) QR 생성 버튼 -->
+    <button id="generateBtn" disabled>QR 생성</button>
+
+    <!-- 4) 생성된 QR을 보여줄 영역 -->
+    <div id="qr-output">
+      <!-- QR 코드가 여기에 그려집니다 -->
+      <div id="qr-label"></div>
+      <div id="qr-code"></div>
+    </div>
   </div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const container = document.getElementById("qr-container");
+    document.addEventListener('DOMContentLoaded', () => {
+      const groupSelect = document.getElementById('groupSelect');
+      const employeeSelect = document.getElementById('employeeSelect');
+      const generateBtn = document.getElementById('generateBtn');
+      const qrLabel = document.getElementById('qr-label');
+      const qrCodeDiv = document.getElementById('qr-code');
 
-      employees.forEach((emp) => {
-        // QR 코드 래퍼 div 생성
-        const wrapper = document.createElement("div");
-        wrapper.className = "qr-wrapper";
+      // 1) employees 배열에서 고유한 소속(group)만 추출
+      const groups = Array.from(new Set(employees.map(emp => emp.group)))
+                          .sort(); // 가나다순 정렬(선택)
 
-        // 직원 이름과 ID 표시
-        const label = document.createElement("div");
-        label.className = "qr-label";
-        label.textContent = emp.name + " (" + emp.id + ")";
+      // 2) 소속 목록을 groupSelect에 추가
+      groups.forEach(groupName => {
+        const opt = document.createElement('option');
+        opt.value = groupName;
+        opt.textContent = groupName;
+        groupSelect.appendChild(opt);
+      });
 
-        // QR 코드가 그려질 div
-        const qrDiv = document.createElement("div");
-        qrDiv.id = "qr-" + emp.id;
+      // 3) 소속을 선택하면 해당 소속 직원만 employeeSelect에 채우기
+      groupSelect.addEventListener('change', () => {
+        const selectedGroup = groupSelect.value;
+        qrLabel.textContent = '';
+        qrCodeDiv.innerHTML = '';
+        employeeSelect.innerHTML = '';
+        generateBtn.disabled = true;
 
-        wrapper.appendChild(label);
-        wrapper.appendChild(qrDiv);
-        container.appendChild(wrapper);
+        if (!selectedGroup) {
+          // 소속이 선택되지 않은 경우
+          employeeSelect.disabled = true;
+          const placeholderOpt = document.createElement('option');
+          placeholderOpt.value = '';
+          placeholderOpt.textContent = '-- 먼저 소속을 선택하세요 --';
+          employeeSelect.appendChild(placeholderOpt);
+          return;
+        }
 
-        // QR코드 생성
-        new QRCode(qrDiv, {
-          text: emp.id,
-          width: 128,
-          height: 128,
+        // 해당 소속의 직원만 필터링
+        const filtered = employees
+          .filter(emp => emp.group === selectedGroup)
+          .sort((a, b) => a.name.localeCompare(b.name)); // 이름 가나다순 정렬
+
+        // 드롭다운 초기 옵션
+        const initOpt = document.createElement('option');
+        initOpt.value = '';
+        initOpt.textContent = '-- 직원 선택 --';
+        employeeSelect.appendChild(initOpt);
+
+        // 필터된 직원으로 옵션 채우기
+        filtered.forEach(emp => {
+          const opt = document.createElement('option');
+          opt.value = emp.id;       // 옵션 값: 사번(id)
+          opt.textContent = `${emp.name} (${emp.id})`;
+          employeeSelect.appendChild(opt);
+        });
+
+        employeeSelect.disabled = false;
+      });
+
+      // 4) 직원 선택 시 QR 생성 버튼 활성화
+      employeeSelect.addEventListener('change', () => {
+        qrLabel.textContent = '';
+        qrCodeDiv.innerHTML = '';
+        generateBtn.disabled = !employeeSelect.value;
+      });
+
+      // 5) QR 생성 버튼 클릭 시
+      generateBtn.addEventListener('click', () => {
+        const empId = employeeSelect.value;
+        if (!empId) return;
+
+        // 직원 정보 찾기
+        const emp = employees.find(e => e.id === empId);
+        if (!emp) return;
+
+        // 오늘 날짜 문자열 (YYYY-MM-DD)
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}-${mm}-${dd}`;
+
+        // QR에 들어갈 데이터는 "사번|오늘날짜" 형식으로 함 (대리출석 최소화)
+        const qrData = `${emp.id}|${todayStr}`;
+
+        // 화면에 라벨(직원 이름 & QR 데이터 정보) 표시
+        qrLabel.textContent = `${emp.name} (${emp.id}) [${emp.group}] - ${todayStr}`;
+
+        // QRCode 라이브러리로 QR 이미지 생성
+        qrCodeDiv.innerHTML = '';
+        new QRCode(qrCodeDiv, {
+          text: qrData,
+          width: 200,
+          height: 200,
           colorDark: "#000000",
           colorLight: "#ffffff",
           correctLevel: QRCode.CorrectLevel.H,
