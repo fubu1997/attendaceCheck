@@ -1,0 +1,129 @@
+<!-- ATTENDANCECHECK/scan.html -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>QR 스캔 &amp; 출석 체크</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- jsQR 라이브러리 -->
+  <script src="js/jsQR.js"></script>
+  <script src="employees.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>QR 스캔으로 출석 체크</h1>
+    <p>카메라 화면에 QR 코드를 대면 자동으로 출석이 처리됩니다.</p>
+
+    <!-- 비디오 및 캔버스 -->
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas" hidden></canvas>
+
+    <!-- 상태 메시지 -->
+    <div id="status">스캔 대기 중...</div>
+
+    <!-- 오늘 출석자 리스트 -->
+    <div id="attended-list">
+      <h2>오늘 출석자</h2>
+      <ul id="list"></ul>
+    </div>
+  </div>
+
+  <script>
+    // 1) localStorage에 attendance 및 attendance_date 초기화
+    function getTodayStr() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    // 페이지 로드 시 실행
+    document.addEventListener("DOMContentLoaded", () => {
+      const todayStr = getTodayStr();
+      const savedDate = localStorage.getItem("attendance_date");
+
+      if (savedDate !== todayStr) {
+        // 날짜가 다르면, 초기화
+        localStorage.setItem("attendance", JSON.stringify([]));
+        localStorage.setItem("attendance_date", todayStr);
+      }
+
+      refreshAttendanceList();
+      startScanner().catch((err) => {
+        console.error(err);
+        document.getElementById("status").textContent = "카메라 접근 오류.";
+      });
+    });
+
+    // 2) 출석 리스트 업데이트
+    function refreshAttendanceList() {
+      const listElem = document.getElementById("list");
+      listElem.innerHTML = "";
+      const records = JSON.parse(localStorage.getItem("attendance")) || [];
+      records.forEach((rec) => {
+        const li = document.createElement("li");
+        li.textContent = rec.name + " (" + rec.id + ") - " + rec.time;
+        listElem.appendChild(li);
+      });
+    }
+
+    // 3) QR 스캔 로직
+    async function startScanner() {
+      const video = document.getElementById("video");
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      const statusElem = document.getElementById("status");
+
+      // 후면 카메라 요청
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" }
+      });
+      video.srcObject = stream;
+
+      video.addEventListener("loadedmetadata", () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+      });
+
+      function tick() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "dontInvert"
+          });
+
+          if (code) {
+            const scannedId = code.data;
+            let records = JSON.parse(localStorage.getItem("attendance")) || [];
+            const exists = records.some(r => r.id === scannedId);
+
+            if (exists) {
+              statusElem.textContent = "이미 출석 처리됨: " + scannedId;
+            } else {
+              const emp = employees.find(e => e.id === scannedId);
+              if (emp) {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString();
+                records.push({ id: emp.id, name: emp.name, time: timeStr });
+                localStorage.setItem("attendance", JSON.stringify(records));
+                statusElem.textContent = emp.name + "님 출석 완료 (" + timeStr + ")";
+                refreshAttendanceList();
+              } else {
+                statusElem.textContent = "등록되지 않은 ID: " + scannedId;
+              }
+            }
+          } else {
+            statusElem.textContent = "스캔 대기 중...";
+          }
+        }
+        requestAnimationFrame(tick);
+      }
+
+      requestAnimationFrame(tick);
+    }
+  </script>
+</body>
+</html>

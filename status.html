@@ -1,0 +1,65 @@
+<!-- ATTENDANCECHECK/status.html -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>오늘 출석 현황</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="employees.js"></script>
+</head>
+<body>
+  <div id="status-container">
+    <h1>오늘 출석 현황</h1>
+    <ul id="attendance-list">
+      <!-- 자바스크립트가 여기에 <li>를 추가합니다 -->
+    </ul>
+  </div>
+
+  <script>
+    // 오늘 날짜 YYYY-MM-DD 구하는 함수
+    function getTodayStr() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const listElem = document.getElementById('attendance-list');
+      const todayStr = getTodayStr();
+      const savedDate = localStorage.getItem('attendance_date');
+
+      // 날짜가 다르면 출석 초기화
+      if (savedDate !== todayStr) {
+        localStorage.setItem('attendance', JSON.stringify([]));
+        localStorage.setItem('attendance_date', todayStr);
+      }
+
+      const records = JSON.parse(localStorage.getItem('attendance')) || [];
+      const attendedSet = new Set(records.map(r => r.id));
+
+      employees.forEach(emp => {
+        const li = document.createElement('li');
+        li.textContent = emp.name + ' (' + emp.id + ')';
+
+        if (attendedSet.has(emp.id)) {
+          li.classList.add('present');
+          const rec = records.find(r => r.id === emp.id);
+          const timeSpan = document.createElement('span');
+          timeSpan.textContent = rec ? rec.time : '';
+          li.appendChild(timeSpan);
+        } else {
+          li.classList.add('absent');
+          const absentSpan = document.createElement('span');
+          absentSpan.textContent = '미출석';
+          li.appendChild(absentSpan);
+        }
+
+        listElem.appendChild(li);
+      });
+    });
+  </script>
+</body>
+</html>

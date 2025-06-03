@@ -1,0 +1,130 @@
+/* ATTENDANCECHECK/css/style.css */
+
+/* --- 공통 기본 설정 --- */
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background-color: #f0f0f0;
+  margin: 0;
+  padding: 20px;
+}
+
+/* 공통 컨테이너 박스 */
+.container {
+  max-width: 480px;
+  margin: 20px auto;
+  background: #fff;
+  border-radius: 6px;
+  padding: 16px;
+  box-shadow: 0 0 8px rgba(0,0,0,0.1);
+}
+
+/* 제목 스타일 */
+h1, h2 {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+/* QR 코드 타일 스타일 */
+#qr-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+}
+
+.qr-wrapper {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+  width: 150px;
+}
+
+.qr-label {
+  margin-bottom: 6px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* 비디오(카메라) 화면 스타일 */
+#video {
+  display: block;
+  margin: 0 auto;
+  max-width: 350px;
+  width: 100%;
+  border: 2px solid #333;
+  border-radius: 6px;
+}
+
+/* 상태 메시지 스타일 */
+#status {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* 출석자 리스트 박스 */
+#attended-list {
+  margin-top: 20px;
+  background: #fff;
+  padding: 10px;
+  border-radius: 6px;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+  box-shadow: 0 0 6px rgba(0,0,0,0.1);
+}
+
+#attended-list ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+#attended-list li {
+  padding: 4px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+}
+
+/* status.html 전용: 출석/미출석 색상 */
+.present {
+  background-color: #e0ffe0;  /* 연한 초록 배경 */
+  color: #006600;             /* 진한 초록 글자 */
+}
+
+.absent {
+  background-color: #ffe0e0;  /* 연한 빨강 배경 */
+  color: #990000;             /* 진한 빨강 글자 */
+}
+
+#status-container {
+  max-width: 480px;
+  margin: 20px auto;
+  background: #fff;
+  border-radius: 6px;
+  padding: 16px;
+  box-shadow: 0 0 8px rgba(0,0,0,0.1);
+}
+
+#status-container h1 {
+  text-align: center;
+  margin-bottom: 12px;
+  font-size: 1.4rem;
+}
+
+#status-container ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#status-container li {
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  font-size: 1rem;
+  display: flex;
+  justify-content: space-between;
+}

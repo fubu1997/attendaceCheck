@@ -1,0 +1,55 @@
+<!-- ATTENDANCECHECK/generate.html -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>QR 코드 생성 (출석용)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- QRCode.js 라이브러리 -->
+  <script src="js/qrcode.min.js"></script>
+  <script src="employees.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>해경 직원 QR 코드 생성</h1>
+    <p>아래에 해경 전체 인원의 QR 코드가 표시됩니다. 인쇄하거나, 화면에 띄워서 사용하세요.</p>
+    <div id="qr-container"></div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const container = document.getElementById("qr-container");
+
+      employees.forEach((emp) => {
+        // QR 코드 래퍼 div 생성
+        const wrapper = document.createElement("div");
+        wrapper.className = "qr-wrapper";
+
+        // 직원 이름과 ID 표시
+        const label = document.createElement("div");
+        label.className = "qr-label";
+        label.textContent = emp.name + " (" + emp.id + ")";
+
+        // QR 코드가 그려질 div
+        const qrDiv = document.createElement("div");
+        qrDiv.id = "qr-" + emp.id;
+
+        wrapper.appendChild(label);
+        wrapper.appendChild(qrDiv);
+        container.appendChild(wrapper);
+
+        // QR코드 생성
+        new QRCode(qrDiv, {
+          text: emp.id,
+          width: 128,
+          height: 128,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.H,
+        });
+      });
+    });
+  </script>
+</body>
+</html>
